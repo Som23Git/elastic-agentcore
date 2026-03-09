@@ -1,0 +1,7 @@
+strands-agents
+bedrock-agentcore
+mcp
+python-dotenv
+boto3
+elasticsearch
+streamlit

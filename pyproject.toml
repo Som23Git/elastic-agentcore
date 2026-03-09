@@ -1,0 +1,20 @@
+[project]
+name = "elastic-agentcore"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "bedrock-agentcore>=1.4.3",
+    "boto3>=1.42.63",
+    "elasticsearch>=9.3.0",
+    "mcp>=1.26.0",
+    "python-dotenv>=1.2.2",
+    "strands-agents>=1.29.0",
+    "streamlit>=1.55.0",
+]
+
+[dependency-groups]
+dev = [
+    "bedrock-agentcore-starter-toolkit>=0.3.2",
+]
