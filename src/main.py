@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
 
-from .config import MEMORY_ID
+from .config import ES_MEMORY_INDEX, MEMORY_ID
 from .elastic_mcp import create_elastic_mcp_client
 
 app = BedrockAgentCoreApp()
@@ -60,9 +60,15 @@ def invoke(payload: dict) -> dict:
     prompt = payload.get("prompt", "What indices are available?")
 
     with _optional_memory(user_id, session_id) as (session_manager, resolved_session_id):
+        tools: list = [elastic_mcp]
+        if ES_MEMORY_INDEX:
+            from .es_memory_tools import recall_memories, store_memory
+
+            tools.extend([store_memory, recall_memories])
+
         agent_kwargs = {
             "system_prompt": SYSTEM_PROMPT,
-            "tools": [elastic_mcp],
+            "tools": tools,
         }
         if session_manager is not None:
             agent_kwargs["session_manager"] = session_manager

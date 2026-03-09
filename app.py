@@ -11,7 +11,7 @@ from datetime import datetime
 import streamlit as st
 from strands import Agent
 
-from src.config import KIBANA_URL, MEMORY_ID, AWS_REGION
+from src.config import ES_MEMORY_INDEX, KIBANA_URL, MEMORY_ID, AWS_REGION
 from src.elastic_mcp import create_elastic_mcp_client
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,25 @@ st.markdown("""
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.markdown("## Architecture")
-    st.markdown("""
+    if ES_MEMORY_INDEX:
+        st.markdown("""
+    ```
+    You ──► Streamlit UI
+              │
+              ▼
+         Strands Agent
+           ├─ Bedrock Claude (LLM)
+           ├─ Elastic MCP (Tools)
+           ├─ AgentCore Memory
+           └─ ES Memory (semantic)
+              │
+              ▼
+         Elastic Cloud
+         Serverless
+    ```
+    """)
+    else:
+        st.markdown("""
     ```
     You ──► Streamlit UI
               │
@@ -151,9 +169,13 @@ with st.sidebar:
     memory_status = "Active" if MEMORY_ID else "Disabled"
     memory_class = "status-active" if MEMORY_ID else "status-inactive"
 
+    es_mem_status = "Active" if ES_MEMORY_INDEX else "Disabled"
+    es_mem_class = "status-active" if ES_MEMORY_INDEX else "status-inactive"
+
     st.markdown(f"""
     **Elastic Cluster**: `{kibana_short}`
     <br>**AgentCore Memory**: <span class="status-pill {memory_class}">{memory_status}</span>
+    <br>**ES Memory**: <span class="status-pill {es_mem_class}">{es_mem_status}</span>
     <br>**AWS Region**: `{AWS_REGION}`
     """, unsafe_allow_html=True)
 
@@ -197,7 +219,7 @@ if "mcp_client" not in st.session_state:
 # ---------------------------------------------------------------------------
 # Metrics bar
 # ---------------------------------------------------------------------------
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     st.metric("Messages", len(st.session_state.messages))
 with col2:
@@ -205,8 +227,9 @@ with col2:
 with col3:
     st.metric("Total Time", f"{st.session_state.total_time:.1f}s")
 with col4:
-    mem_label = "Active" if MEMORY_ID else "Off"
-    st.metric("Memory", mem_label)
+    st.metric("AgentCore Mem", "On" if MEMORY_ID else "Off")
+with col5:
+    st.metric("ES Memory", "On" if ES_MEMORY_INDEX else "Off")
 
 st.divider()
 
@@ -264,9 +287,15 @@ def get_agent(user_id: str = "conference-demo"):
 def run_agent(prompt: str, user_id: str = "conference-demo") -> str:
     """Run the agent and return the response text."""
     with _get_memory_manager(user_id, None) as session_manager:
+        tools: list = [st.session_state.mcp_client or create_elastic_mcp_client()]
+        if ES_MEMORY_INDEX:
+            from src.es_memory_tools import recall_memories, store_memory
+
+            tools.extend([store_memory, recall_memories])
+
         agent_kwargs = {
             "system_prompt": SYSTEM_PROMPT,
-            "tools": [st.session_state.mcp_client or create_elastic_mcp_client()],
+            "tools": tools,
         }
         if session_manager is not None:
             agent_kwargs["session_manager"] = session_manager

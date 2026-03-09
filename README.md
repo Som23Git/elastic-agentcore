@@ -45,18 +45,20 @@ An AI-powered data analyst agent that queries your Elasticsearch weblogs and eco
 
 ```
 elastic-agentcore/
-├── app.py                   # Streamlit chat UI (conference-ready)
+├── app.py                       # Streamlit chat UI (conference-ready)
 ├── src/
 │   ├── __init__.py
-│   ├── main.py              # Agent entrypoint (deployed to AgentCore Runtime)
-│   ├── elastic_mcp.py       # Elastic hosted MCP client setup
-│   ├── memory_setup.py      # AgentCore Memory session manager
-│   └── config.py            # Centralized environment config
+│   ├── main.py                  # Agent entrypoint (deployed to AgentCore Runtime)
+│   ├── elastic_mcp.py           # Elastic hosted MCP client setup
+│   ├── memory_setup.py          # AgentCore Memory session manager
+│   ├── es_memory_tools.py       # (v2) Elasticsearch-backed long-term memory tools
+│   └── config.py                # Centralized environment config
 ├── scripts/
 │   ├── __init__.py
-│   ├── setup_memory.py      # One-time: create AgentCore Memory store
-│   ├── create_api_key.py    # One-time: create Elastic API key
-│   └── invoke_agent.py      # Test client for the deployed agent
+│   ├── setup_memory.py          # One-time: create AgentCore Memory store
+│   ├── setup_memory_index.py    # One-time: create ES memory index (v2)
+│   ├── create_api_key.py        # One-time: create Elastic API key
+│   └── invoke_agent.py          # Test client for the deployed agent
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -538,6 +540,125 @@ Both modes use the same agent code, Elastic MCP connection, and memory configura
 
 ---
 
+## Part 7: Elasticsearch as Long-Term Memory (Optional)
+
+> **Added in v2.0.0** -- this feature is entirely optional. Your agent works
+> perfectly fine with only AgentCore Memory (v1.0.0).
+
+Instead of relying exclusively on AgentCore Memory for long-term storage, you
+can use Elasticsearch itself as a semantic memory store. This gives you:
+
+- **Vector search** over memories via the `semantic_text` field type
+- **Kibana visibility** -- browse, search, and visualize stored memories
+- **Full control** -- export, transform, and query memories with ES|QL
+- **No extra AWS infrastructure** -- reuses your existing Elastic cluster
+
+### How it works
+
+Two custom Strands `@tool` functions are registered with the agent:
+
+| Tool | What it does |
+|------|-------------|
+| `store_memory` | Indexes a memory document (preference, insight, fact) into an ES index with `semantic_text` for automatic embedding |
+| `recall_memories` | Runs a semantic query to retrieve the most relevant past memories |
+
+The agent decides when to store and recall memories based on its system prompt
+and conversation context. AgentCore Memory still handles short-term session
+turns; Elasticsearch handles long-term knowledge.
+
+### Step 7.1 -- Create the memory index
+
+```bash
+uv run python -m scripts.setup_memory_index
+```
+
+This creates an index called `agent-memory` with the following mapping:
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "content":   { "type": "semantic_text" },
+      "tags":      { "type": "keyword" },
+      "user_id":   { "type": "keyword" },
+      "timestamp": { "type": "date" }
+    }
+  }
+}
+```
+
+> **Note:** `semantic_text` requires an Elastic Cloud Serverless project or
+> a self-managed cluster with an inference endpoint configured. On Serverless,
+> it works out of the box with no additional setup.
+
+### Step 7.2 -- Enable ES memory
+
+Add the index name to your `.env`:
+
+```bash
+ES_MEMORY_INDEX=agent-memory
+```
+
+Restart the agent or Streamlit UI. The sidebar and metrics bar will now show
+**ES Memory: Active**.
+
+### Step 7.3 -- Update the API key permissions
+
+Your Elastic API key needs read/write access to the memory index. Update the
+key (Step 1.4) to include it:
+
+```json
+"indices": [
+  {
+    "names": [
+      "kibana_sample_data_logs",
+      "kibana_sample_data_ecommerce",
+      "agent-memory"
+    ],
+    "privileges": ["read", "write", "view_index_metadata"]
+  }
+]
+```
+
+### Step 7.4 -- Test it
+
+Try prompts like:
+
+```
+"Remember that I prefer ES|QL over DSL queries"
+"What do you remember about me?"
+"I'm mostly interested in 5xx errors and revenue trends -- remember that"
+```
+
+You can also browse stored memories in Kibana under **Discover** with the
+`agent-memory` index pattern, or query them directly in Dev Tools:
+
+```
+POST agent-memory/_search
+{
+  "query": {
+    "semantic": {
+      "field": "content",
+      "query": "user preferences"
+    }
+  }
+}
+```
+
+### Architecture comparison
+
+| Feature | AgentCore Memory | Elasticsearch Memory |
+|---------|-----------------|---------------------|
+| Session turns (short-term) | Yes | No |
+| Long-term extraction | Automatic (built-in strategies) | Agent-driven (tool calls) |
+| Search type | Managed by AWS | Semantic vector search |
+| Visibility | AWS Console | Kibana (Discover, ES|QL, dashboards) |
+| Infrastructure | AWS-managed | Your existing Elastic cluster |
+
+You can use both simultaneously -- they complement each other.
+
+---
+
 ## Example Queries
 
 Here are some example prompts to try with your agent:
@@ -636,6 +757,20 @@ lsof -i :8080
 - Verify `MEMORY_ID` is set in `.env`
 - Check the memory store status is `ACTIVE` in the AWS console
 - Long-term memory extraction is **asynchronous** -- it may take a few seconds after a session ends before preferences and facts appear
+
+### ES Memory: "ELASTICSEARCH_URL must be set"
+
+- Make sure `ELASTICSEARCH_URL` is set in your `.env` file (it's the
+  Elasticsearch endpoint, not the Kibana URL)
+- If you don't want ES memory, leave `ES_MEMORY_INDEX` blank -- the tools
+  won't be loaded
+
+### ES Memory: semantic query returns no results
+
+- Verify the `agent-memory` index exists: `GET _cat/indices/agent-memory?v`
+- `semantic_text` generates embeddings asynchronously on ingest -- wait a few
+  seconds after storing a memory before querying
+- Check that your API key has `read` and `write` privileges on the index
 
 ### Agent deploy fails
 
