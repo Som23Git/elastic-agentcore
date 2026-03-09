@@ -85,6 +85,23 @@ Perfect for **conference demos** and **live presentations** on a big screen.
 
 > **Headless mode** (for remote servers): `uv run streamlit run app.py --server.headless true`
 
+### GitHub Codespaces (one-click start)
+
+This repo includes a devcontainer config for instant setup in GitHub Codespaces:
+
+1. Click **Code → Codespaces → Create codespace on main** in the GitHub repo
+2. Wait for the environment to build (installs Python 3.13, AWS CLI, and all dependencies automatically)
+3. In the Codespace terminal:
+
+```bash
+cp .env.example .env
+# Edit .env with your Elastic credentials (KIBANA_URL, ELASTIC_API_KEY)
+aws configure
+uv run streamlit run app.py --server.headless true
+```
+
+4. The Streamlit UI opens automatically in your browser
+
 ---
 
 ## Prerequisites
