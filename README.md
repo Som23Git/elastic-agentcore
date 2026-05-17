@@ -2,6 +2,33 @@
 
 An AI-powered data analyst agent that queries your Elasticsearch weblogs and ecommerce data using natural language. Built with the **Strands Agents SDK**, powered by **Amazon Bedrock** foundation models, connected to **Elastic Cloud Serverless** via the hosted **Agent Builder MCP** endpoint, with **AgentCore Memory** for session continuity and long-term personalization.
 
+## Demo walkthrough
+
+Short screen recordings of the full flow—from repo to live agent. Useful for workshops, README previews, and sharing with your team.
+
+| Step | What you'll see |
+|------|-----------------|
+| 1 | Clone the GitHub repo and open the project |
+| 2 | Streamlit chat UI — ask questions in plain English; Bedrock + Elastic MCP tools run behind the scenes |
+| 3 | Amazon Bedrock AgentCore Runtime — host and manage the deployed agent |
+| 4 | Elastic Cloud Serverless + Agent Builder — MCP tools and analytics indices in Kibana |
+
+### Step 1 — Get the repository
+
+![Clone the elastic-agentcore repository on GitHub](docs/demos/demo_step_01.gif)
+
+### Step 2 — Streamlit data analyst UI
+
+![Elastic Data Analyst Streamlit chat — natural-language queries with Bedrock and Agent Builder MCP](docs/demos/demo_step_02.gif)
+
+### Step 3 — AgentCore Runtime on AWS
+
+![Amazon Bedrock AgentCore Runtime console — host and monitor the agent](docs/demos/demo_step_03.gif)
+
+### Step 4 — Elastic Cloud + Agent Builder
+
+![Elastic Cloud Serverless home — Agent Builder, indices, and MCP-backed tools](docs/demos/demo_step_04.gif)
+
 ## Architecture
 
 ```
@@ -59,6 +86,12 @@ elastic-agentcore/
 │   ├── setup_memory_index.py    # One-time: create ES memory index (v2)
 │   ├── create_api_key.py        # One-time: create Elastic API key
 │   └── invoke_agent.py          # Test client for the deployed agent
+├── docs/
+│   └── demos/                   # Demo GIFs (see Demo walkthrough in README)
+│       ├── demo_step_01.gif
+│       ├── demo_step_02.gif
+│       ├── demo_step_03.gif
+│       └── demo_step_04.gif
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -783,6 +816,7 @@ lsof -i :8080
 
 ## Reference Links
 
+- [Article draft: Natural-language analytics with AgentCore, Strands, and hosted MCP](docs/blog-agentcore-elastic-mcp.md) (for Elasticsearch Labs / companion narrative)
 - [Elastic Agent Builder MCP Server docs](https://www.elastic.co/docs/explore-analyze/ai-features/agent-builder/mcp-server)
 - [Elastic Agent Builder Tools reference](https://www.elastic.co/docs/explore-analyze/ai-features/agent-builder/tools/builtin-tools-reference)
 - [Amazon Bedrock AgentCore docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory-getting-started.html)
